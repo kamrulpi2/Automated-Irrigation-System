@@ -1,1 +1,162 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AgroNode | Smart Control Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #f1f8e9, #e3f2fd);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      color: #2e7d32;
+      margin-bottom: 20px;
+      font-size: 2em;
+    }
+    .moisture-section {
+      margin-bottom: 30px;
+      max-width: 800px;
+      width: 90%;
+    }
+    .moisture-bar {
+      background: #c8e6c9;
+      border-radius: 6px;
+      overflow: hidden;
+      margin: 10px 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .moisture-fill {
+      height: 24px;
+      line-height: 24px;
+      color: #fff;
+      text-align: center;
+      font-weight: bold;
+      transition: width 0.3s ease-in-out;
+    }
+    .relay-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+      max-width: 800px;
+      width: 90%;
+    }
+    .relay-card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .relay-card h3 {
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    .status {
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    .on-btn, .off-btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 5px;
+    }
+    .on-btn {
+      background-color: #4caf50;
+      color: white;
+    }
+    .off-btn {
+      background-color: #f44336;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>AgroNode | Smart Control Dashboard</h1>
+
+  <div class="moisture-section">
+    <h2>Soil Moisture Status</h2>
+    <div id="moistureBars"></div>
+  </div>
+
+  <div class="relay-grid" id="relayGrid"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBUO9nR0",
+      authDomain: "agriirebaseapp.com",://agriculture-project-1fbc2-default-rtdb.firebaseio.com",
+      projectId: "agriculture-project-1fbc2",
+      storageBucket: 1a821e87d4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase();
+
+    // --- Display Moisture Readings ---
+    const moistureBars = document.getElementById('moistureBars');
+    const totalMoistureSensors = 4; // Change this to the actual number of sensors
+
+    for (let i = 1; i <= totalMoistureSensors; i++) {
+      const sensorId = `moisture${i}`;
+      const wrapper = document.createElement('div');
+      const fill = document.createElement('div');
+      fill.className = 'moisture-fill';
+      fill.id = `moisture-fill-${i}`;
+      wrapper.className = 'moisture-bar';
+      wrapper.appendChild(fill);
+      moistureBars.appendChild(wrapper);
+
+      const sensorRef = ref(db, `/sensor/${sensorId}`);
+      onValue(sensorRef, (snapshot) => {
+        const value = snapshot.val();
+        const percent = Math.min(Math.max(value, 0), 100); // clamp between 0-100
+        fill.style.width = `${percent}%`;
+        fill.textContent = `Sensor ${i}: ${percent}%`;
+        fill.style.backgroundColor = percent > 60 ? '#388e3c' : percent > 30 ? '#fbc02d' : '#e53935';
+      });
+    }
+
+    // --- Relay Controls ---
+    const relayGrid = document.getElementById('relayGrid');
+
+    for (let i = 1; i <= 9; i++) {
+      const relayId = `r${i}`;
+      const card = document.createElement('div');
+      card.className = 'relay-card';
+      card.innerHTML = `
+        <h3>Relay ${i}</h3>
+        <div class="status" id="${relayId}-status">Loading...</div>
+        <button class="on-btn" onclick="setRelay('${relayId}', true)">ON</button>
+        <button class="off-btn" onclick="setRelay('${relayId}', false)">OFF</button>
+      `;
+      relayGrid.appendChild(card);
+
+      const relayRef = ref(db, `/relayControl/${relayId}`);
+      onValue(relayRef, (snapshot) => {
+        const status = snapshot.val();
+        document.getElementById(`${relayId}-status`).textContent = "Status: " + (status ? "ON" : "OFF");
+      });
+    }
+
+    // Expose control function globally
+    window.setRelay = (relayId, state) => {
+      const relayRef = ref(db, `/relayControl/${relayId}`);
+      set(relayRef, state);
+    };
+  </script>
+
+</body>
+</html>
